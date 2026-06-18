@@ -1,5 +1,5 @@
-import { getDailyPasscode } from '../../../../lib/passcode.js';
-import { kvGet, kvSet } from '../../../../lib/kv.js';
+import { getDailyPasscode } from '../../../lib/passcode.js';
+import { kvGet, kvSet } from '../../../lib/kv.js';
 
 const KEYS_STORE = 'xgen-api-keys';
 
