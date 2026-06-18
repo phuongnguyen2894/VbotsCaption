@@ -61,8 +61,8 @@ export async function POST(request) {
     results.push(...batchResults);
   }
 
-  // Auto-add valid and quota-hit keys
-  const toAdd = results.filter(r => r.status === 'valid' || r.status === 'quota');
+  // Auto-add only valid keys (not quota-hit ones)
+  const toAdd = results.filter(r => r.status === 'valid');
   for (const k of toAdd) {
     if (!existingSet.has(k.key) && existing.length < 100) {
       existing.push({ id: genId(), key: k.key, label: k.label || `Key ${existing.length + 1}` });
