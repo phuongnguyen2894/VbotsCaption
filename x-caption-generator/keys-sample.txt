@@ -1,7 +1,0 @@
-# X Caption Generator — bulk API keys file
-# One key per line. Optional: key,label
-# Lines starting with # are ignored.
-
-AIzaSyABCDEFGHIJKLMNOPQRSTUVWXYZ123456,Personal account
-AIzaSyABCDEFGHIJKLMNOPQRSTUVWXYZ234567,Work account
-AIzaSyABCDEFGHIJKLMNOPQRSTUVWXYZ345678
