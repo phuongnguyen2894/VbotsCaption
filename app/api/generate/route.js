@@ -1,37 +1,17 @@
-import { kvGet, kvSet } from '../../lib/kv.js';
-
-const KEYS_STORE = 'xgen-api-keys';
-
-function todayKey() {
-  return `xgen-key-status-${new Date().toISOString().split('T')[0]}`;
-}
-
-async function getAvailableKey() {
-  const keys = (await kvGet(KEYS_STORE)) || [];
-  if (!keys.length) return null;
-  const status = (await kvGet(todayKey())) || {};
-  return keys.find(k => !status[k.id]) || null;
-}
-
-async function markExhausted(id) {
-  const sk = todayKey();
-  const status = (await kvGet(sk)) || {};
-  status[id] = true;
-  await kvSet(sk, status);
-}
-
-async function callGemini(apiKey, prompt) {
-  return fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 200, temperature: 0.9 },
-      }),
-    }
-  );
+async function callOllama(prompt) {
+  const apiUrl = process.env.OLLAMA_API_URL || 'http://localhost:11434';
+  const model = process.env.OLLAMA_MODEL || 'mistral';
+  
+  return fetch(`${apiUrl}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      prompt,
+      stream: false,
+      temperature: 0.9,
+    }),
+  });
 }
 
 export async function POST(request) {
@@ -54,47 +34,39 @@ Rules:
 - Make it punchy, engaging, and share-worthy
 - Return ONLY the raw caption text — no quotes, no explanation, no JSON`;
 
-  let keyObj = await getAvailableKey();
-
-  if (!keyObj) {
-    const envKey = process.env.GEMINI_API_KEY;
-    if (!envKey) {
-      return Response.json(
-        { error: 'No API keys available. Add Gemini API keys in the admin panel.' },
-        { status: 503 }
-      );
-    }
-    keyObj = { id: '__env__', key: envKey };
-  }
-
-  while (keyObj) {
-    const res = await callGemini(keyObj.key, prompt);
-
-    if (res.status === 429) {
-      if (keyObj.id !== '__env__') await markExhausted(keyObj.id);
-      keyObj = await getAvailableKey();
-      if (!keyObj) {
-        return Response.json(
-          { error: 'All API keys have hit their daily quota. Resets at midnight Pacific time.' },
-          { status: 429 }
-        );
-      }
-      continue;
-    }
+  try {
+    const res = await callOllama(prompt);
 
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+      const err = await res.text().catch(() => '');
+      if (res.status === 503) {
+        return Response.json(
+          { error: 'Ollama is not running. Please start Ollama on your machine.' },
+          { status: 503 }
+        );
+      }
       return Response.json(
-        { error: err?.error?.message || `Gemini API error ${res.status}` },
+        { error: err || `Ollama API error ${res.status}` },
         { status: 502 }
       );
     }
 
     const data = await res.json();
-    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-    const caption = raw.replace(/^["']|["']$/g, '');
-    return Response.json({ caption });
-  }
+    const raw = data.response?.trim() || '';
+    const caption = raw.replace(/^["']|["']$/g, '').trim();
+    
+    if (!caption) {
+      return Response.json(
+        { error: 'Failed to generate caption. Try again.' },
+        { status: 502 }
+      );
+    }
 
-  return Response.json({ error: 'No API keys available.' }, { status: 503 });
+    return Response.json({ caption });
+  } catch (e) {
+    return Response.json(
+      { error: `Connection error: ${e.message}. Is Ollama running?` },
+      { status: 503 }
+    );
+  }
 }

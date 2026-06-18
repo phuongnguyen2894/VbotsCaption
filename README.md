@@ -1,6 +1,6 @@
 # X Caption Generator
 
-AI-powered X (Twitter) post caption generator with a public generation page and a passcode-protected admin panel. Powered by **Google Gemini** (free, no credit card needed).
+AI-powered X (Twitter) post caption generator with a public generation page and a passcode-protected admin panel. Powered by **Ollama** (completely free, self-hosted).
 
 ## Pages
 
@@ -11,43 +11,112 @@ AI-powered X (Twitter) post caption generator with a public generation page and 
 
 ---
 
-## Deploy to GitHub + Vercel (free)
+## Setup (Local Development)
 
-### Step 1 — Get a free Gemini API key
+### Prerequisites
 
-1. Go to [aistudio.google.com](https://aistudio.google.com) — sign in with any Google account
-2. Click **Get API key → Create API key**
-3. Copy the key — you'll need it in Step 3
+1. **Download & Install Ollama**: https://ollama.ai
+2. **Start Ollama**: Open Terminal/CMD and run:
+   ```bash
+   ollama serve
+   ```
+3. **Pull a Model** (in a new Terminal/CMD):
+   ```bash
+   ollama pull mistral
+   ```
+   Other options: `ollama pull neural-chat`, `ollama pull orca-mini` (smaller, faster)
 
-No credit card required. Free tier gives you **1,500 captions/day**.
+### Run Locally
 
-### Step 2 — Push to GitHub
+1. Clone this repo and install dependencies:
+   ```bash
+   npm install
+   ```
 
-1. Create a new repository on [github.com](https://github.com/new)
-2. Upload these project files (drag & drop or via Git)
+2. Create `.env.local` with:
+   ```
+   OLLAMA_API_URL=http://localhost:11434
+   OLLAMA_MODEL=mistral
+   ```
 
-### Step 3 — Connect to Vercel
+3. Start the dev server:
+   ```bash
+   npm run dev
+   ```
 
-1. Go to [vercel.com](https://vercel.com) and sign up with your GitHub account (free)
-2. Click **Add New → Project** → select your repository → click **Deploy**
-   > First deploy will fail — that's expected. Add env vars next.
+4. Open http://localhost:3000 in your browser
 
-### Step 4 — Add environment variables
+---
+
+## Deploy to Vercel (Cloud)
+
+### Option 1: Use Ollama on Your Machine (Not Recommended)
+
+If Vercel needs to connect to Ollama on your local machine, you'll need:
+- Expose your machine to the internet (public IP + firewall rules)
+- Keep your machine running 24/7
+- This is NOT recommended for production
+
+### Option 2: Use a Cloud Ollama Service (Recommended)
+
+Ollama can be self-hosted on a cloud server. Popular options:
+- **Fly.io** (free tier available): Deploy Ollama container
+- **DigitalOcean**: Affordable VPS for Ollama
+- **AWS EC2**: t3.micro free tier available
+- **Local Server**: Run on a home server / Raspberry Pi and expose via tunnel
+
+### Quick Setup (Recommended - Fly.io)
+
+1. Install Fly CLI: https://fly.io/docs/hands-on/install-flyctl/
+2. Deploy Ollama:
+   ```bash
+   fly launch --image ollama/ollama --name my-ollama
+   fly scale vm shared-cpu-1x
+   ```
+3. Connect and pull model:
+   ```bash
+   fly ssh console
+   ollama pull mistral
+   ```
+4. Get your Fly URL and set in Vercel env vars
+
+### On Vercel — Add Environment Variables
 
 In your Vercel project go to **Settings → Environment Variables** and add:
 
 | Variable | Value |
 |---|---|
-| `GEMINI_API_KEY` | Your API key from [aistudio.google.com](https://aistudio.google.com) |
+| `OLLAMA_API_URL` | Your Ollama server URL (e.g., https://my-ollama.fly.dev) |
+| `OLLAMA_MODEL` | Model name (e.g., `mistral`, `neural-chat`) |
 
+---
 
-### Step 5 — Add a KV database (for admin config storage)
+## How It Works
 
-1. In your Vercel project, click **Storage → Create Database → KV (Redis)**
-2. Give it a name → **Create & Continue**
-3. Click **Connect to Project** — Vercel auto-adds the `KV_*` env vars
+1. **No API Keys**: Ollama is completely free and self-hosted
+2. **No Quotas**: Generate unlimited captions (limited only by server resources)
+3. **Local Privacy**: Your data never leaves your machine (unless you use cloud Ollama)
+4. **Instant**: Fast inference with Ollama (especially with GPU acceleration)
 
-### Step 6 — Redeploy
+---
+
+## Troubleshooting
+
+**Error: "Ollama is not running"**
+- Make sure `ollama serve` is running in a Terminal/CMD window
+- Check that OLLAMA_API_URL is correct (default: http://localhost:11434)
+
+**Error: "Model not found"**
+- Run `ollama pull mistral` (or your chosen model)
+- Check OLLAMA_MODEL matches your installed model name
+
+**Slow responses**
+- Ollama is slower on CPU. Consider:
+  - Using a faster model: `ollama pull neural-chat` (smaller, faster)
+  - Running on a GPU machine
+  - Upgrading your hardware
+
+---
 
 Go to **Deployments** → click **⋯** on the latest → **Redeploy**. Your app is live! 🎉
 
