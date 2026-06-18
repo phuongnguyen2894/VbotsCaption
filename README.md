@@ -22,9 +22,9 @@ AI-powered X (Twitter) post caption generator with a public generation page and 
    ```
 3. **Pull a Model** (in a new Terminal/CMD):
    ```bash
-   ollama pull mistral
+   ollama pull orca-mini
    ```
-   Other options: `ollama pull neural-chat`, `ollama pull orca-mini` (smaller, faster)
+   Other options: `ollama pull mistral` (better quality), `ollama pull neural-chat` (balanced)
 
 ### Run Locally
 
@@ -36,7 +36,7 @@ AI-powered X (Twitter) post caption generator with a public generation page and 
 2. Create `.env.local` with:
    ```
    OLLAMA_API_URL=http://localhost:11434
-   OLLAMA_MODEL=mistral
+   OLLAMA_MODEL=orca-mini
    ```
 
 3. Start the dev server:
@@ -76,7 +76,7 @@ Ollama can be self-hosted on a cloud server. Popular options:
 3. Connect and pull model:
    ```bash
    fly ssh console
-   ollama pull mistral
+   ollama pull orca-mini
    ```
 4. Get your Fly URL and set in Vercel env vars
 
@@ -87,7 +87,7 @@ In your Vercel project go to **Settings → Environment Variables** and add:
 | Variable | Value |
 |---|---|
 | `OLLAMA_API_URL` | Your Ollama server URL (e.g., https://my-ollama.fly.dev) |
-| `OLLAMA_MODEL` | Model name (e.g., `mistral`, `neural-chat`) |
+| `OLLAMA_MODEL` | Model name (e.g., `orca-mini`, `mistral`, `neural-chat`) |
 
 ---
 
@@ -107,58 +107,26 @@ In your Vercel project go to **Settings → Environment Variables** and add:
 - Check that OLLAMA_API_URL is correct (default: http://localhost:11434)
 
 **Error: "Model not found"**
-- Run `ollama pull mistral` (or your chosen model)
+- Run `ollama pull orca-mini` (or your chosen model)
 - Check OLLAMA_MODEL matches your installed model name
 
 **Slow responses**
 - Ollama is slower on CPU. Consider:
-  - Using a faster model: `ollama pull neural-chat` (smaller, faster)
+  - Using a faster model: `ollama pull orca-mini` (fastest)
+  - Using a quality model: `ollama pull mistral` (better quality)
   - Running on a GPU machine
   - Upgrading your hardware
 
 ---
 
-Go to **Deployments** → click **⋯** on the latest → **Redeploy**. Your app is live! 🎉
+## Model Recommendations
+
+| Model | Speed | Quality | Memory | Best For |
+|---|---|---|---|---|
+| **orca-mini** | ⚡⚡⚡ Very Fast | ⭐⭐⭐ Good | 2GB | Quick responses, CPU |
+| neural-chat | ⚡⚡ Medium | ⭐⭐⭐ Good | 3GB | Balanced |
+| mistral | ⚡ Fast | ⭐⭐⭐⭐ Excellent | 4GB | Best quality, GPU |
+
+Try different models: `ollama pull <model-name>`
 
 ---
-
-## Free tier limits (Gemini)
-
-| Model | Requests/day | Requests/min |
-|---|---|---|
-| gemini-2.0-flash | 1,500 | 15 |
-
-At 1 caption per click, that's **1,500 generations per day at zero cost**.
-
----
-
-## Local Development
-
-```bash
-npm install
-cp .env.example .env.local
-# Fill in GEMINI_API_KEY and ADMIN_PASSCODE in .env.local
-npm run dev
-```
-
-> Without `KV_*` variables, admin config uses in-memory storage (resets on restart).
-
----
-
-## How it works
-
-```
-Browser  →  /api/generate  →  Gemini API  →  caption
-Browser  →  /api/auth      →  validates passcode
-Browser  →  /api/config    →  Vercel KV (Redis)
-```
-
-Your Gemini API key never reaches the browser — all AI calls go through the secure `/api/generate` server route.
-
----
-
-## Tech stack
-
-- [Next.js 15](https://nextjs.org)
-- [Vercel KV](https://vercel.com/docs/storage/vercel-kv) — Redis config storage
-- [Google Gemini API](https://aistudio.google.com) — Caption generation (free)

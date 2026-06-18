@@ -1,6 +1,6 @@
 async function callOllama(prompt) {
   const apiUrl = process.env.OLLAMA_API_URL || 'http://localhost:11434';
-  const model = process.env.OLLAMA_MODEL || 'mistral';
+  const model = process.env.OLLAMA_MODEL || 'orca-mini';
   
   return fetch(`${apiUrl}/api/generate`, {
     method: 'POST',
