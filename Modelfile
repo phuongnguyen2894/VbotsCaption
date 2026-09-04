@@ -1,0 +1,18 @@
+FROM ./vn-caption-ft-Q4_K_M.gguf
+
+SYSTEM "Bạn viết caption tiếng Việt cho mạng xã hội. Chỉ trả về caption, không giải thích."
+
+TEMPLATE """<|im_start|>system
+{{ .System }}<|im_end|>
+<|im_start|>user
+{{ .Prompt }}<|im_end|>
+<|im_start|>assistant
+"""
+
+PARAMETER stop "<|im_start|>"
+PARAMETER stop "<|im_end|>"
+PARAMETER num_ctx 2048
+PARAMETER temperature 0.65
+PARAMETER top_p 0.92
+PARAMETER repeat_penalty 1.1
+PARAMETER num_predict 220

@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 const card = { background: '#18181b', border: '1px solid #27272a', borderRadius: 12, padding: '16px 18px' };
 const secLabel = { fontSize: 11, fontWeight: 700, color: '#3f3f46', textTransform: 'uppercase', letterSpacing: '0.09em' };
@@ -46,8 +46,7 @@ function CaptionCard({ caption, charLimit, tagsText }) {
   const copyCap = () => copyText(caption).then(() => { setCopiedCap(true); setTimeout(() => setCopiedCap(false), 2000); });
   const copyBoth = () => {
     const fmt = formatTagsText(tagsText);
-    const sep = '\n \n';
-    copyText(fmt ? caption + sep + fmt : caption).then(() => { setCopiedBoth(true); setTimeout(() => setCopiedBoth(false), 2000); });
+    copyText(fmt ? caption + '\n \n' + fmt : caption).then(() => { setCopiedBoth(true); setTimeout(() => setCopiedBoth(false), 2000); });
   };
 
   return (
@@ -110,53 +109,109 @@ function TagsSection({ tagsAndKeywords }) {
 
 export default function PublicPage() {
   const [cfg, setCfg] = useState(null);
-  const [caption, setCaption] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState(0);
+  const [captions, setCaptions] = useState([]);
+  const [loadings, setLoadings] = useState([]);
+  const [errors, setErrors] = useState([]);
+  const generatedRef = useRef([]);
+
+  function generateForTab(tabIndex, activeCfg) {
+    const topic = activeCfg.topics[tabIndex];
+    if (!topic?.topic?.trim()) return;
+
+    setErrors(prev => { const a = [...prev]; a[tabIndex] = ''; return a; });
+    setLoadings(prev => { const a = [...prev]; a[tabIndex] = true; return a; });
+    setCaptions(prev => { const a = [...prev]; a[tabIndex] = ''; return a; });
+
+    fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ topic: topic.topic, tagsAndKeywords: topic.tagsAndKeywords, charLimit: topic.charLimit ?? activeCfg.charLimit ?? 280, topicLabel: topic.label || `Topic ${tabIndex + 1}`, language: topic.language || 'vi' }),
+    })
+      .then(res => res.json().then(data => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok) {
+          setErrors(prev => { const a = [...prev]; a[tabIndex] = data.error || 'Generation failed.'; return a; });
+        } else {
+          setCaptions(prev => { const a = [...prev]; a[tabIndex] = data.caption; return a; });
+        }
+      })
+      .catch(e => {
+        setErrors(prev => { const a = [...prev]; a[tabIndex] = 'Request failed: ' + e.message; return a; });
+      })
+      .finally(() => {
+        setLoadings(prev => { const a = [...prev]; a[tabIndex] = false; return a; });
+      });
+  }
 
   useEffect(() => {
-    fetch('/api/config').then(r => r.json()).then(setCfg).catch(() => {});
+    fetch('/api/config').then(r => r.json()).then(data => {
+      // Only show topics the admin has enabled for the public page.
+      const cfgData = { ...data, topics: (data.topics || []).filter(t => t.enabled !== false) };
+      const n = cfgData.topics.length;
+      setCfg(cfgData);
+      setCaptions(Array(n).fill(''));
+      setLoadings(Array(n).fill(false));
+      setErrors(Array(n).fill(''));
+      generatedRef.current = Array(n).fill(false);
+      if (n > 0 && cfgData.topics[0].topic?.trim()) {
+        generatedRef.current[0] = true;
+        generateForTab(0, cfgData);
+      }
+    }).catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (cfg?.topic?.trim()) generateWith(cfg);
-  }, [cfg]);
-
-  const isReady = !!cfg?.topic?.trim();
-  const tagsText = cfg?.tagsAndKeywords?.trim() || '';
-  const hasTagsSection = tagsText.length > 0;
-
-  const generate = () => { if (isReady && !loading) generateWith(cfg); };
-
-  async function generateWith(activeCfg) {
-    setError(''); setLoading(true); setCaption('');
-    try {
-      const res = await fetch('/api/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: activeCfg.topic, tagsAndKeywords: activeCfg.tagsAndKeywords, charLimit: activeCfg.charLimit }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || 'Generation failed.'); return; }
-      setCaption(data.caption);
-    } catch (e) {
-      setError('Request failed: ' + e.message);
-    } finally {
-      setLoading(false);
+  function handleTabChange(idx) {
+    setActiveTab(idx);
+    if (cfg && !generatedRef.current[idx]) {
+      generatedRef.current[idx] = true;
+      generateForTab(idx, cfg);
     }
   }
+
+  const topics = cfg?.topics || [];
+  const caption = captions[activeTab] || '';
+  const loading = loadings[activeTab] || false;
+  const error = errors[activeTab] || '';
+  const tagsText = topics[activeTab]?.tagsAndKeywords?.trim() || '';
+  const activeCharLimit = topics[activeTab]?.charLimit ?? cfg?.charLimit ?? 280;
+  const hasTagsSection = tagsText.length > 0;
+  const isReady = topics.length > 0 && !!topics[activeTab]?.topic?.trim();
+  const multiTab = topics.length > 1;
 
   return (
     <div style={{ minHeight: '100vh', padding: '36px 20px' }}>
       <div style={{ maxWidth: 560, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <div style={{ width: 50, height: 50, background: '#000', border: '1px solid #27272a', borderRadius: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 23, fontWeight: 900, color: '#fff', margin: '0 auto 14px' }}>𝕏</div>
-          <h1 style={{ margin: '0 0 6px', fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', color: '#fafafa' }}>Caption Generator</h1>
+          <img src="/logo.jpg" alt="LingOrm Vbots" style={{ width: 70, height: 70, borderRadius: '50%', objectFit: 'cover', margin: '0 auto 14px', display: 'block' }} />
+          <h1 style={{ margin: '0 0 6px', fontSize: 26, fontWeight: 800, letterSpacing: '-0.03em', color: '#fafafa' }}>LingOrm_Vbots Caption Generator</h1>
           <p style={{ fontSize: 14, color: '#52525b' }}>
-            {!cfg ? 'Loading…' : isReady ? `Inspirational · max ${cfg.charLimit} chars` : 'Not configured — contact your admin.'}
+            {!cfg ? 'Loading…' : isReady ? `Admiring · max ${activeCharLimit} chars` : 'Not configured — contact your admin.'}
           </p>
         </div>
+
+        {multiTab && (
+          <div style={{ display: 'flex', gap: 6, width: '100%', marginBottom: 24, flexWrap: 'wrap' }}>
+            {topics.map((t, i) => (
+              <button
+                key={i}
+                onClick={() => handleTabChange(i)}
+                style={{
+                  padding: '6px 16px',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  border: `1px solid ${activeTab === i ? '#3b82f6' : '#27272a'}`,
+                  background: activeTab === i ? '#1d4ed820' : 'transparent',
+                  color: activeTab === i ? '#60a5fa' : '#71717a',
+                  cursor: 'pointer',
+                }}
+              >
+                {t.label || `Topic ${i + 1}`}
+              </button>
+            ))}
+          </div>
+        )}
 
         {error && (
           <div style={{ background: '#ef444415', border: '1px solid #ef444430', borderRadius: 10, padding: '10px 16px', color: '#f87171', fontSize: 13, marginBottom: 20, width: '100%' }}>
@@ -173,10 +228,10 @@ export default function PublicPage() {
                   <span style={{ fontSize: 14, color: '#52525b' }}>Generating…</span>
                 </div>
               ) : (
-                <CaptionCard caption={caption} charLimit={cfg.charLimit} tagsText={tagsText} />
+                <CaptionCard caption={caption} charLimit={activeCharLimit} tagsText={tagsText} />
               )}
               <button
-                onClick={generate}
+                onClick={() => generateForTab(activeTab, cfg)}
                 disabled={loading || !isReady}
                 style={{ width: '100%', marginTop: 10, padding: '9px 0', background: 'transparent', border: '1px solid #27272a', borderRadius: 9, color: loading ? '#3f3f46' : '#52525b', fontSize: 13, cursor: loading || !isReady ? 'not-allowed' : 'pointer' }}
               >

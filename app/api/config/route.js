@@ -1,12 +1,6 @@
 import { kvGet, kvSet } from '../../lib/kv.js';
 import { getDailyPasscode } from '../../lib/passcode.js';
-
-const CONFIG_KEY = 'xgen-config-v1';
-const DEFAULT_CONFIG = {
-  topic: 'Praise Xman movie',
-  tagsAndKeywords: 'Xman #movie',
-  charLimit: 280,
-};
+import { CONFIG_KEY, DEFAULT_CONFIG } from '../../lib/config.js';
 
 export async function GET() {
   const config = await kvGet(CONFIG_KEY);

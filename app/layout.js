@@ -1,8 +1,14 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'X Caption Generator',
-  description: 'Generate engaging X (Twitter) post captions with AI',
+  title: 'LingOrm_Vbots Caption Generator',
+  description: 'Empower LingOrm trends!',
+  openGraph: {
+    title: 'LingOrm_Vbots Caption Generator',
+    description: 'Empower LingOrm trends!',
+    url: 'https://vbots-caption.vercel.app',
+    type: 'website',
+  },
 };
 
 export default function RootLayout({ children }) {
