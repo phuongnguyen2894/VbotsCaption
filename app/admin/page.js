@@ -25,5 +25,10 @@ export default function AdminPage() {
     setPasscode(pin);
   };
 
-  return passcode ? <AdminShell passcode={passcode} /> : <PinEntry onSuccess={handleSuccess} />;
+  const handleLogout = () => {
+    try { localStorage.removeItem(AUTH_KEY); } catch {}
+    setPasscode(null);
+  };
+
+  return passcode ? <AdminShell passcode={passcode} onLogout={handleLogout} /> : <PinEntry onSuccess={handleSuccess} />;
 }

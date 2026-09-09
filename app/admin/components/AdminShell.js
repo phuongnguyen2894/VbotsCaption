@@ -7,7 +7,7 @@ import { AdminStats } from './AdminStats.js';
 import { AdminTopics } from './AdminTopics.js';
 
 // ── Admin Shell (tabs) ────────────────────────────────────────────────────────
-export function AdminShell({ passcode }) {
+export function AdminShell({ passcode, onLogout }) {
   const [tab, setTab] = useState('config');
 
   const tabStyle = (t) => ({
@@ -27,9 +27,14 @@ export function AdminShell({ passcode }) {
       {/* Header */}
       <div style={{ padding: '20px 16px 0' }}>
         <div style={{ maxWidth: 680, margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-            <img src="/logo.jpg" alt="LingOrm Vbots" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-            <p style={{ margin: 0, fontSize: 17, fontWeight: 600, color: 'var(--color-text-primary)' }}>Admin</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 4 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <img src="/logo.jpg" alt="LingOrm Vbots" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+              <p style={{ margin: 0, fontSize: 17, fontWeight: 600, color: 'var(--color-text-primary)' }}>Admin</p>
+            </div>
+            <button onClick={onLogout} style={{ fontSize: 13, color: 'var(--color-text-secondary)', background: 'transparent', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: '6px 12px', minHeight: 0 }}>
+              Log out
+            </button>
           </div>
         </div>
       </div>

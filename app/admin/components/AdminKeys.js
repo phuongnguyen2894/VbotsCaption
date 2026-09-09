@@ -13,17 +13,19 @@ function AdminKeys({ passcode, provider }) {
   const [keys, setKeys] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [bulk, setBulk] = useState('');
   const [adding, setAdding] = useState(false);
   const [msg, setMsg] = useState('');
 
   const load = async () => {
-    setLoading(true);
+    setLoading(true); setLoadError('');
     try {
       const res = await fetch('/api/keys', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passcode, provider }) });
       const data = await res.json();
-      if (!data.error) { setKeys(data.keys || []); setTotal(data.total || 0); }
-    } catch {} finally { setLoading(false); }
+      if (data.error) { setLoadError(data.error); }
+      else { setKeys(data.keys || []); setTotal(data.total || 0); }
+    } catch { setLoadError('Network error — try again.'); } finally { setLoading(false); }
   };
   useEffect(() => { setBulk(''); setMsg(''); load(); }, [provider]);
 
@@ -85,6 +87,8 @@ function AdminKeys({ passcode, provider }) {
         </div>
         {loading ? (
           <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>Loading…</p>
+        ) : loadError ? (
+          <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-danger)' }}>{loadError} — try logging out and back in.</p>
         ) : keys.length === 0 ? (
           <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>No keys yet — add some above. Until then the app uses the single env key.</p>
         ) : (

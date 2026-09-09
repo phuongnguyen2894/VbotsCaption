@@ -345,17 +345,30 @@ export async function POST(request) {
   // ~0.75 tokens/char). trimToLimit + dropPartialSentence still guarantee the cap.
   const numPredict = Math.max(96, Math.ceil(limit * 0.9));
 
+  // The topic can explicitly ask for a full/birth name (e.g. "Lingling Kwong") — when it
+  // does, respect that instead of forcing the short form, both in the instruction given to
+  // the model and in the post-processing cleanup below.
+  const fullNameRe = /\b(Lingling\s+Kwong|Sirilak\s+Kwong|Orm\s+Kornnaphat|Kornnaphat\s+Sethratanapong)\b/i;
+  const wantsFullName = fullNameRe.test(topic);
+
+  const nameRuleEn = wantsFullName
+    ? 'Use the exact name(s) given in the topic below, including any full name — do not shorten them.'
+    : 'ALWAYS use just the short names "Ling" and "Orm" — never full names and never a pronoun/title before them (write "Ling", not "Miss Ling" or "she Ling").';
+  const nameRuleVi = wantsFullName
+    ? 'Dùng đúng tên như trong chủ đề bên dưới, kể cả tên đầy đủ — KHÔNG rút gọn.'
+    : 'LUÔN gọi ngắn gọn là "Ling" và "Orm" — KHÔNG dùng tên đầy đủ và KHÔNG thêm đại từ/danh xưng trước tên (viết thẳng "Ling", "Orm"; KHÔNG viết "cô Ling", "nàng Orm").';
+
   // Core identity only, so the model knows who they are without being primed to name
   // brands/shows.
   const contextLine = lang === 'vi'
-    ? 'Thông tin nền: "Ling" và "Orm" là HAI nữ diễn viên Thái Lan, một cặp đôi màn ảnh. LUÔN gọi ngắn gọn là "Ling" và "Orm" — KHÔNG dùng tên đầy đủ và KHÔNG thêm đại từ/danh xưng trước tên (viết thẳng "Ling", "Orm"; KHÔNG viết "cô Ling", "nàng Orm"). Cả hai đều là nữ — chỉ dùng đại từ nữ ("họ"); TUYỆT ĐỐI không dùng "anh", "chàng", "ông" hay bất kỳ từ nào chỉ nam giới. TUYỆT ĐỐI KHÔNG nhắc đến thương hiệu (ví dụ Dior) hay tên phim/series nào, trừ khi chủ đề bên dưới có nói rõ.\n\n'
-    : 'Background: "Ling" and "Orm" are TWO Thai actresses, an on-screen couple. ALWAYS use just the short names "Ling" and "Orm" — never full names and never a pronoun/title before them (write "Ling", not "Miss Ling" or "she Ling"). Both are women — use ONLY female pronouns (she/her/they); NEVER use he/him/his or any male word. NEVER mention any brand (e.g. Dior) or any series/show title unless the topic below explicitly names it.\n\n';
+    ? `Thông tin nền: "Ling" và "Orm" là HAI nữ diễn viên Thái Lan, một cặp đôi màn ảnh. ${nameRuleVi} Cả hai đều là nữ — chỉ dùng đại từ nữ ("họ"); TUYỆT ĐỐI không dùng "anh", "chàng", "ông" hay bất kỳ từ nào chỉ nam giới. TUYỆT ĐỐI KHÔNG nhắc đến thương hiệu (ví dụ Dior) hay tên phim/series nào, trừ khi chủ đề bên dưới có nói rõ.\n\n`
+    : `Background: "Ling" and "Orm" are TWO Thai actresses, an on-screen couple. ${nameRuleEn} Both are women — use ONLY female pronouns (she/her/they); NEVER use he/him/his or any male word. NEVER mention any brand (e.g. Dior) or any series/show title unless the topic below explicitly names it.\n\n`;
 
   const prompt = `${contextLine}Generate 1 X (Twitter) post caption about: "${topic}"
 Tone: Admiring${tagsLine}
 Keep it punchy and share-worthy. No hashtags, no emojis. Return ONLY the caption text.${langLine}${lengthLine}`;
 
-  const clean = (c) => dropPartialSentence(trimToLimit(stripForeignScripts(shortenNames(stripEmojis(c))), limit));
+  const clean = (c) => dropPartialSentence(trimToLimit(stripForeignScripts(wantsFullName ? stripEmojis(c) : shortenNames(stripEmojis(c))), limit));
   // A caption is "good" only if it's complete AND uses no male words (they're two women).
   const isGood = (c) => endsComplete(c) && !hasMaleWords(c, lang);
 
