@@ -4,7 +4,7 @@ import { card, sLbl, inp } from './styles.js';
 
 // ── Admin Config ──────────────────────────────────────────────────────────────
 export function AdminConfig({ passcode }) {
-  const [cfg, setCfg] = useState({ topics: [{ label: '', topic: '', tagsAndKeywords: '', language: 'vi', charLimit: 250, enabled: true }], charLimit: 280, provider: 'groq', geminiModel: 'gemini-2.5-flash' });
+  const [cfg, setCfg] = useState({ topics: [{ label: '', topic: '', tagsAndKeywords: '', language: 'vi', charLimit: 250, enabled: true, allowEmojis: false }], charLimit: 280, provider: 'groq', geminiModel: 'gemini-2.5-flash' });
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -14,7 +14,7 @@ export function AdminConfig({ passcode }) {
       // Backward-compat: give each topic its own charLimit, defaulting to the old global one.
       // Topics saved before the enable/disable feature existed default to enabled.
       const fallback = data.charLimit ?? 250;
-      const topics = (data.topics || []).map(t => ({ charLimit: fallback, enabled: true, ...t }));
+      const topics = (data.topics || []).map(t => ({ charLimit: fallback, enabled: true, allowEmojis: false, ...t }));
       setCfg({ provider: 'groq', geminiModel: 'gemini-2.5-flash', ...data, topics });
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
@@ -29,7 +29,7 @@ export function AdminConfig({ passcode }) {
 
   const addTopic = () => {
     if (cfg.topics.length >= 5) return;
-    setCfg(prev => ({ ...prev, topics: [...prev.topics, { label: '', topic: '', tagsAndKeywords: '', language: 'vi', charLimit: prev.charLimit ?? 250, enabled: true }] }));
+    setCfg(prev => ({ ...prev, topics: [...prev.topics, { label: '', topic: '', tagsAndKeywords: '', language: 'vi', charLimit: prev.charLimit ?? 250, enabled: true, allowEmojis: false }] }));
   };
 
   const removeTopic = (idx) => {
@@ -150,6 +150,19 @@ export function AdminConfig({ passcode }) {
                     }}
                   >
                     {t.enabled === false ? 'Hidden' : '● Live'}
+                  </button>
+                  <button
+                    onClick={() => setTopicField(idx, 'allowEmojis', !t.allowEmojis)}
+                    title={t.allowEmojis ? 'Model may add 1-2 fitting emojis — click to disallow' : 'No emojis in captions — click to allow a couple when they fit'}
+                    style={{
+                      fontSize: 13, padding: '6px 12px', borderRadius: 8, minHeight: 36,
+                      border: `0.5px solid ${t.allowEmojis ? 'var(--color-border-info)' : 'var(--color-border-tertiary)'}`,
+                      background: t.allowEmojis ? 'var(--color-background-info)' : 'transparent',
+                      color: t.allowEmojis ? 'var(--color-text-info)' : 'var(--color-text-tertiary)',
+                      fontWeight: 500,
+                    }}
+                  >
+                    {t.allowEmojis ? '🙂 Emojis on' : 'Emojis off'}
                   </button>
                   {cfg.topics.length < 5 && (
                     <button

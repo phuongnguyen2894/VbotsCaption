@@ -313,7 +313,7 @@ export async function runAutoPending(siteUrl) {
       if (!topic) { results.push({ id: target.id, error: 'No topic at index ' + target.topicIdx }); continue; }
       const genRes = await fetch(`${siteUrl}/api/generate`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic: topic.topic, tagsAndKeywords: topic.tagsAndKeywords, language: topic.language || 'vi', charLimit: topic.charLimit || 250 }),
+        body: JSON.stringify({ topic: topic.topic, tagsAndKeywords: topic.tagsAndKeywords, language: topic.language || 'vi', charLimit: topic.charLimit || 250, allowEmojis: !!topic.allowEmojis }),
       });
       const { caption } = await genRes.json();
       if (!caption) { results.push({ id: target.id, error: 'Empty caption' }); continue; }

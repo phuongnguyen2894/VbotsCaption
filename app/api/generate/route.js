@@ -85,14 +85,18 @@ function stripForeignScripts(text) {
     .trim();
 }
 
+// Terminal punctuation, optionally followed by a closing quote/bracket and — when emojis
+// are allowed — trailing emoji(s) the model tacked on after the punctuation.
+const TERMINAL_TAIL_RE = /[.!?…]['"”’)\]]*[\p{Extended_Pictographic}\u{FE0F}\u{200D}\s]*$/u;
+
 // Drop a trailing fragment left when num_predict cuts the model off mid-sentence.
 // vn-caption's training captions always end in terminal punctuation, so a caption
 // that doesn't is truncated — trim back to the last complete sentence.
 function dropPartialSentence(text) {
   text = (text || '').trim();
   if (!text) return text;
-  // Already ends cleanly (terminal punctuation, optionally closing quote/bracket).
-  if (/[.!?…]['"”’)\]]*$/u.test(text)) return text;
+  // Already ends cleanly (terminal punctuation, optionally closing quote/bracket/emoji).
+  if (TERMINAL_TAIL_RE.test(text)) return text;
   // Cut back to the last terminator, as long as enough caption remains.
   const m = text.match(/^[\s\S]*[.!?…]['"”’)\]]*/u);
   if (m && m[0].trim().length >= Math.min(24, text.length)) return m[0].trim();
@@ -102,7 +106,7 @@ function dropPartialSentence(text) {
 // A caption that doesn't end in terminal punctuation is almost certainly truncated
 // (or had a Chinese tail stripped), so we treat it as incomplete and retry.
 function endsComplete(text) {
-  return /[.!?…]['"”’)\]]*$/u.test((text || '').trim());
+  return TERMINAL_TAIL_RE.test((text || '').trim());
 }
 
 // Ling & Orm are both women — reject male pronouns/words so we regenerate or fall to Groq.
@@ -314,7 +318,7 @@ export async function POST(request) {
            || request.headers.get('x-real-ip')
            || 'unknown';
 
-  const { topic, tagsAndKeywords, charLimit, topicLabel, language } = await request.json();
+  const { topic, tagsAndKeywords, charLimit, topicLabel, language, allowEmojis } = await request.json();
 
   if (!topic?.trim()) {
     return Response.json({ error: 'Topic is required' }, { status: 400 });
@@ -364,11 +368,22 @@ export async function POST(request) {
     ? `Thông tin nền: "Ling" và "Orm" là HAI nữ diễn viên Thái Lan, một cặp đôi màn ảnh. ${nameRuleVi} Cả hai đều là nữ — chỉ dùng đại từ nữ ("họ"); TUYỆT ĐỐI không dùng "anh", "chàng", "ông" hay bất kỳ từ nào chỉ nam giới. TUYỆT ĐỐI KHÔNG nhắc đến thương hiệu (ví dụ Dior) hay tên phim/series nào, trừ khi chủ đề bên dưới có nói rõ.\n\n`
     : `Background: "Ling" and "Orm" are TWO Thai actresses, an on-screen couple. ${nameRuleEn} Both are women — use ONLY female pronouns (she/her/they); NEVER use he/him/his or any male word. NEVER mention any brand (e.g. Dior) or any series/show title unless the topic below explicitly names it.\n\n`;
 
+  // Emojis are opt-in per topic — default stays text-only so existing topics don't change
+  // behavior; when a topic allows it, ask for a couple of fitting emojis instead of none.
+  const emojiRule = allowEmojis
+    ? (lang === 'vi'
+      ? 'Có thể thêm 1-2 emoji phù hợp với nội dung nếu tự nhiên (không bắt buộc, không lạm dụng).'
+      : 'You may add 1-2 emojis that genuinely fit the content if it feels natural — do not force them or overuse them.')
+    : (lang === 'vi' ? 'Không dùng emoji.' : 'No emojis.');
+
   const prompt = `${contextLine}Generate 1 X (Twitter) post caption about: "${topic}"
 Tone: Admiring${tagsLine}
-Keep it punchy and share-worthy. No hashtags, no emojis. Return ONLY the caption text.${langLine}${lengthLine}`;
+Keep it punchy and share-worthy. No hashtags. ${emojiRule} Return ONLY the caption text.${langLine}${lengthLine}`;
 
-  const clean = (c) => dropPartialSentence(trimToLimit(stripForeignScripts(wantsFullName ? stripEmojis(c) : shortenNames(stripEmojis(c))), limit));
+  const clean = (c) => {
+    const withoutEmojis = allowEmojis ? c : stripEmojis(c);
+    return dropPartialSentence(trimToLimit(stripForeignScripts(wantsFullName ? withoutEmojis : shortenNames(withoutEmojis)), limit));
+  };
   // A caption is "good" only if it's complete AND uses no male words (they're two women).
   const isGood = (c) => endsComplete(c) && !hasMaleWords(c, lang);
 

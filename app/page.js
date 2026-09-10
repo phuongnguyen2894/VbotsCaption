@@ -126,7 +126,7 @@ export default function PublicPage() {
     fetch('/api/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ topic: topic.topic, tagsAndKeywords: topic.tagsAndKeywords, charLimit: topic.charLimit ?? activeCfg.charLimit ?? 280, topicLabel: topic.label || `Topic ${tabIndex + 1}`, language: topic.language || 'vi' }),
+      body: JSON.stringify({ topic: topic.topic, tagsAndKeywords: topic.tagsAndKeywords, charLimit: topic.charLimit ?? activeCfg.charLimit ?? 280, topicLabel: topic.label || `Topic ${tabIndex + 1}`, language: topic.language || 'vi', allowEmojis: !!topic.allowEmojis }),
     })
       .then(res => res.json().then(data => ({ ok: res.ok, data })))
       .then(({ ok, data }) => {
