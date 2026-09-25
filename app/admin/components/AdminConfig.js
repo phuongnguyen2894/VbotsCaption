@@ -142,7 +142,7 @@ export function AdminConfig({ passcode }) {
                   <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 8, border: '0.5px solid var(--color-border-tertiary)' }}>
                     <button
                       onClick={() => setOpenIdx(idx)}
-                      style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, background: 'transparent', border: 'none', padding: 0, textAlign: 'left', minHeight: 'auto' }}
+                      style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 2, background: 'transparent', border: 'none', padding: 0, textAlign: 'left', minHeight: 'auto', color: 'inherit' }}
                     >
                       <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
                         {t.label || `Topic ${idx + 1}`}
