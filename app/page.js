@@ -35,8 +35,9 @@ function formatTagsText(text) {
   return [keywords.join(' '), hashtags.join(' ')].filter(Boolean).join('\n');
 }
 
-function CaptionCard({ caption, charLimit, tagsText }) {
+function CaptionCard({ caption, charLimit, tagsText, igTagsText }) {
   const [copiedCap, setCopiedCap] = useState(false);
+  const [copiedIg, setCopiedIg] = useState(false);
   const [copiedBoth, setCopiedBoth] = useState(false);
   const n = caption.length;
   const over = n > charLimit;
@@ -44,6 +45,10 @@ function CaptionCard({ caption, charLimit, tagsText }) {
   const barColor = over ? '#ef4444' : n > charLimit * 0.85 ? '#f59e0b' : '#22c55e';
 
   const copyCap = () => copyText(caption).then(() => { setCopiedCap(true); setTimeout(() => setCopiedCap(false), 2000); });
+  const copyIg = () => {
+    const fmt = formatTagsText(igTagsText);
+    copyText(fmt ? caption + '\n \n' + fmt : caption).then(() => { setCopiedIg(true); setTimeout(() => setCopiedIg(false), 2000); });
+  };
   const copyBoth = () => {
     const fmt = formatTagsText(tagsText);
     copyText(fmt ? caption + '\n \n' + fmt : caption).then(() => { setCopiedBoth(true); setTimeout(() => setCopiedBoth(false), 2000); });
@@ -63,6 +68,11 @@ function CaptionCard({ caption, charLimit, tagsText }) {
         <button onClick={copyCap} style={{ flex: 1, padding: '7px 0', background: copiedCap ? '#22c55e18' : 'transparent', border: `1px solid ${copiedCap ? '#22c55e50' : '#3f3f46'}`, borderRadius: 8, color: copiedCap ? '#22c55e' : '#a1a1aa', fontSize: 13 }}>
           {copiedCap ? '✓ Copied' : 'Copy caption'}
         </button>
+        {igTagsText && (
+          <button onClick={copyIg} style={{ flex: 1, padding: '7px 0', background: copiedIg ? '#ec489918' : 'transparent', border: `1px solid ${copiedIg ? '#ec489950' : '#3f3f46'}`, borderRadius: 8, color: copiedIg ? '#f472b6' : '#a1a1aa', fontSize: 13 }}>
+            {copiedIg ? '✓ Copied' : 'Copy caption + IG tags'}
+          </button>
+        )}
         {tagsText && (
           <button onClick={copyBoth} style={{ flex: 1, padding: '7px 0', background: copiedBoth ? '#3b82f618' : 'transparent', border: `1px solid ${copiedBoth ? '#3b82f650' : '#3f3f46'}`, borderRadius: 8, color: copiedBoth ? '#60a5fa' : '#a1a1aa', fontSize: 13 }}>
             {copiedBoth ? '✓ Copied' : 'Copy caption + tags'}
@@ -229,7 +239,7 @@ export default function PublicPage() {
                   <span style={{ fontSize: 14, color: '#52525b' }}>Generating…</span>
                 </div>
               ) : (
-                <CaptionCard caption={caption} charLimit={activeCharLimit} tagsText={tagsText} />
+                <CaptionCard caption={caption} charLimit={activeCharLimit} tagsText={tagsText} igTagsText={igTagsText} />
               )}
               <button
                 onClick={() => generateForTab(activeTab, cfg)}
