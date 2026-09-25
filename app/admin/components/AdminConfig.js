@@ -6,7 +6,7 @@ import { card, sLbl, inp } from './styles.js';
 const MAX_TOPICS = 10;
 
 export function AdminConfig({ passcode }) {
-  const [cfg, setCfg] = useState({ topics: [{ label: '', topic: '', tagsAndKeywords: '', language: 'vi', charLimit: 250, enabled: true, allowEmojis: false }], charLimit: 280, provider: 'groq', geminiModel: 'gemini-2.5-flash' });
+  const [cfg, setCfg] = useState({ topics: [{ label: '', topic: '', tagsAndKeywords: '', igTagsAndKeywords: '', language: 'vi', charLimit: 250, enabled: true, allowEmojis: false }], charLimit: 280, provider: 'groq', geminiModel: 'gemini-2.5-flash' });
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -17,7 +17,7 @@ export function AdminConfig({ passcode }) {
       // Backward-compat: give each topic its own charLimit, defaulting to the old global one.
       // Topics saved before the enable/disable feature existed default to enabled.
       const fallback = data.charLimit ?? 250;
-      const topics = (data.topics || []).map(t => ({ charLimit: fallback, enabled: true, allowEmojis: false, ...t }));
+      const topics = (data.topics || []).map(t => ({ charLimit: fallback, enabled: true, allowEmojis: false, igTagsAndKeywords: '', ...t }));
       setCfg({ provider: 'groq', geminiModel: 'gemini-2.5-flash', ...data, topics });
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
@@ -32,7 +32,7 @@ export function AdminConfig({ passcode }) {
 
   const addTopic = () => {
     if (cfg.topics.length >= MAX_TOPICS) return;
-    setCfg(prev => ({ ...prev, topics: [...prev.topics, { label: '', topic: '', tagsAndKeywords: '', language: 'vi', charLimit: prev.charLimit ?? 250, enabled: true, allowEmojis: false }] }));
+    setCfg(prev => ({ ...prev, topics: [...prev.topics, { label: '', topic: '', tagsAndKeywords: '', igTagsAndKeywords: '', language: 'vi', charLimit: prev.charLimit ?? 250, enabled: true, allowEmojis: false }] }));
     setOpenIdx(cfg.topics.length); // jump straight to the new topic's details
   };
 
@@ -124,8 +124,21 @@ export function AdminConfig({ passcode }) {
           {openIdx === null ? (
             <div style={card}>
               <label style={sLbl}>Topics ({cfg.topics.length}/{MAX_TOPICS})</label>
+
+              {cfg.topics.length < MAX_TOPICS && (
+                <button
+                  onClick={addTopic}
+                  style={{ marginBottom: 12, width: '100%', fontSize: 14, color: 'var(--color-text-info)', background: 'transparent', border: '0.5px dashed var(--color-border-secondary)', borderRadius: 'var(--border-radius-md)', padding: '14px', minHeight: 48 }}
+                >
+                  + Add topic ({cfg.topics.length}/{MAX_TOPICS})
+                </button>
+              )}
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {cfg.topics.map((t, idx) => (
+                {/* Newest first — topics are appended on add, so the highest index is the latest. */}
+                {cfg.topics.map((_, i) => cfg.topics.length - 1 - i).map(idx => {
+                  const t = cfg.topics[idx];
+                  return (
                   <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 8, border: '0.5px solid var(--color-border-tertiary)' }}>
                     <button
                       onClick={() => setOpenIdx(idx)}
@@ -144,18 +157,18 @@ export function AdminConfig({ passcode }) {
                     </button>
                     <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                       <button
-                        onClick={() => moveTopic(idx, -1)}
-                        disabled={idx === 0}
-                        title="Move up"
-                        style={{ fontSize: 13, padding: '6px 8px', borderRadius: 8, minHeight: 32, border: '0.5px solid var(--color-border-tertiary)', background: 'transparent', color: 'var(--color-text-secondary)', opacity: idx === 0 ? 0.4 : 1 }}
+                        onClick={() => moveTopic(idx, 1)}
+                        disabled={idx === cfg.topics.length - 1}
+                        title="Move up (more recent)"
+                        style={{ fontSize: 13, padding: '6px 8px', borderRadius: 8, minHeight: 32, border: '0.5px solid var(--color-border-tertiary)', background: 'transparent', color: 'var(--color-text-secondary)', opacity: idx === cfg.topics.length - 1 ? 0.4 : 1 }}
                       >
                         ↑
                       </button>
                       <button
-                        onClick={() => moveTopic(idx, 1)}
-                        disabled={idx === cfg.topics.length - 1}
-                        title="Move down"
-                        style={{ fontSize: 13, padding: '6px 8px', borderRadius: 8, minHeight: 32, border: '0.5px solid var(--color-border-tertiary)', background: 'transparent', color: 'var(--color-text-secondary)', opacity: idx === cfg.topics.length - 1 ? 0.4 : 1 }}
+                        onClick={() => moveTopic(idx, -1)}
+                        disabled={idx === 0}
+                        title="Move down (older)"
+                        style={{ fontSize: 13, padding: '6px 8px', borderRadius: 8, minHeight: 32, border: '0.5px solid var(--color-border-tertiary)', background: 'transparent', color: 'var(--color-text-secondary)', opacity: idx === 0 ? 0.4 : 1 }}
                       >
                         ↓
                       </button>
@@ -168,17 +181,9 @@ export function AdminConfig({ passcode }) {
                       </button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
-
-              {cfg.topics.length < MAX_TOPICS && (
-                <button
-                  onClick={addTopic}
-                  style={{ marginTop: 8, width: '100%', fontSize: 14, color: 'var(--color-text-info)', background: 'transparent', border: '0.5px dashed var(--color-border-secondary)', borderRadius: 'var(--border-radius-md)', padding: '14px', minHeight: 48 }}
-                >
-                  + Add topic ({cfg.topics.length}/{MAX_TOPICS})
-                </button>
-              )}
             </div>
           ) : (() => {
             const idx = openIdx;
@@ -288,7 +293,17 @@ export function AdminConfig({ passcode }) {
                   placeholder="e.g. LingOrm #LingOrm"
                   style={inp}
                 />
-                <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--color-text-tertiary)' }}>Prefix with # for hashtags — separate by spaces</p>
+                <p style={{ margin: '6px 0 12px', fontSize: 12, color: 'var(--color-text-tertiary)' }}>Prefix with # for hashtags — separate by spaces</p>
+
+                <label style={{ ...sLbl, marginBottom: 4 }}>Instagram hashtags & keywords (optional)</label>
+                <input
+                  type="text"
+                  value={t.igTagsAndKeywords ?? ''}
+                  onChange={e => setTopicField(idx, 'igTagsAndKeywords', e.target.value)}
+                  placeholder="e.g. LingOrm #LingOrmIG #ThaiBL"
+                  style={inp}
+                />
+                <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--color-text-tertiary)' }}>Shown separately on the public page for Instagram — leave blank to skip</p>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '14px 0 8px' }}>
                   <label style={{ ...sLbl, marginBottom: 0 }}>Character limit</label>

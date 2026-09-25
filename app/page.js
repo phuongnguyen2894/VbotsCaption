@@ -73,7 +73,7 @@ function CaptionCard({ caption, charLimit, tagsText }) {
   );
 }
 
-function TagsSection({ tagsAndKeywords }) {
+function TagsSection({ tagsAndKeywords, label = 'Tags & Keywords' }) {
   const [copied, setCopied] = useState(false);
   const tokens = parseTagTokens(tagsAndKeywords);
   if (!tokens.length) return null;
@@ -84,7 +84,7 @@ function TagsSection({ tagsAndKeywords }) {
   return (
     <div style={card}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={secLabel}>Tags & Keywords</span>
+        <span style={secLabel}>{label}</span>
         <button onClick={copy} style={{ padding: '4px 13px', background: copied ? '#22c55e18' : 'transparent', border: `1px solid ${copied ? '#22c55e50' : '#3f3f46'}`, borderRadius: 7, color: copied ? '#22c55e' : '#71717a', fontSize: 12 }}>
           {copied ? '✓ Copied' : 'Copy'}
         </button>
@@ -174,8 +174,9 @@ export default function PublicPage() {
   const loading = loadings[activeTab] || false;
   const error = errors[activeTab] || '';
   const tagsText = topics[activeTab]?.tagsAndKeywords?.trim() || '';
+  const igTagsText = topics[activeTab]?.igTagsAndKeywords?.trim() || '';
   const activeCharLimit = topics[activeTab]?.charLimit ?? cfg?.charLimit ?? 280;
-  const hasTagsSection = tagsText.length > 0;
+  const hasTagsSection = tagsText.length > 0 || igTagsText.length > 0;
   const isReady = topics.length > 0 && !!topics[activeTab]?.topic?.trim();
   const multiTab = topics.length > 1;
 
@@ -241,7 +242,9 @@ export default function PublicPage() {
           )}
 
           {caption && hasTagsSection && <div style={{ borderTop: '1px solid #27272a', margin: '0 0 20px' }} />}
-          {hasTagsSection && <TagsSection tagsAndKeywords={tagsText} />}
+          {tagsText && <TagsSection tagsAndKeywords={tagsText} />}
+          {tagsText && igTagsText && <div style={{ height: 12 }} />}
+          {igTagsText && <TagsSection tagsAndKeywords={igTagsText} label="Instagram Tags & Keywords" />}
         </div>
       </div>
     </div>
