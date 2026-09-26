@@ -102,7 +102,7 @@ function AdminKeys({ passcode, provider }) {
           <label style={{ ...sLbl, marginBottom: 0 }}>Active keys</label>
           {keys.length > 0 && (
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={exportKeys} style={{ fontSize: 12, background: 'transparent', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: '4px 10px' }}>Export</button>
+              <button onClick={exportKeys} style={{ fontSize: 12, color: 'var(--color-text-primary)', background: 'transparent', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: '4px 10px' }}>Export</button>
               <button onClick={clearAll} style={{ fontSize: 12, color: 'var(--color-text-danger)', background: 'transparent', border: '0.5px solid var(--color-border-danger)', borderRadius: 8, padding: '4px 10px' }}>Clear all</button>
             </div>
           )}
