@@ -6,6 +6,25 @@ import { CONFIG_KEY, resolveGeminiModel } from '../../lib/config.js';
 import { hanoiDateString } from '../../lib/timezone.js';
 import { makeFallbackCaption } from '../../lib/fallbackCaption.js';
 
+// Per-instance read-through cache for the KV values every request needs (config, key pools,
+// skip lists, sticky key, active provider). They change rarely, and the up-front KV round
+// trip was a fixed cost on every caption. Entries live briefly so admin edits and other
+// instances' skip-list updates show up within TTL; local changes are written through.
+const KV_CACHE_TTL_MS = 20 * 1000;
+const kvCache = new Map();
+
+async function kvGetCached(key) {
+  const hit = kvCache.get(key);
+  if (hit && Date.now() - hit.t < KV_CACHE_TTL_MS) return hit.v;
+  const v = await kvGet(key);
+  kvCache.set(key, { v, t: Date.now() });
+  return v;
+}
+
+function cacheSet(key, v) {
+  kvCache.set(key, { v, t: Date.now() });
+}
+
 function normTopic(t) {
   if (!t || typeof t === 'number') return { captions: t || 0, users: [] };
   return t;
@@ -263,7 +282,10 @@ async function callProviderRotating(prompt, model, pool, callFn, skip, skipStore
     after(() => persistSkips(skipStore, newSkips).catch(() => {}));
   }
   if (got) {
-    if (goodId !== lastGoodId) after(() => persistLastGood(lastGoodStore, goodId).catch(() => {}));
+    if (goodId !== lastGoodId) {
+      cacheSet(lastGoodStore, goodId);
+      after(() => persistLastGood(lastGoodStore, goodId).catch(() => {}));
+    }
     return result;
   }
   throw lastErr || new Error('all_keys_failed');
@@ -319,6 +341,7 @@ export async function POST(request) {
            || request.headers.get('x-real-ip')
            || 'unknown';
 
+  const t0 = Date.now();
   const { topic, tagsAndKeywords, charLimit, topicLabel, language, allowEmojis } = await request.json();
 
   if (!topic?.trim()) {
@@ -394,14 +417,14 @@ Keep it punchy and share-worthy. No hashtags. ${emojiRule} Return ONLY the capti
   // are 5 independent KV reads that were previously done as sequential round-trips, adding
   // up to real latency before the first Groq/Gemini call was even made.
   const [cfg, groqKeysRaw, groqSkip, geminiKeysRaw, geminiSkip, groqLastGood, geminiLastGood, activeProvider] = await Promise.all([
-    kvGet(CONFIG_KEY),
-    kvGet('groq-keys'),
-    kvGet('groq-skip'),
-    kvGet('gemini-keys'),
-    kvGet('gemini-skip'),
-    kvGet('groq-lastgood'),
-    kvGet('gemini-lastgood'),
-    kvGet('active-provider'),
+    kvGetCached(CONFIG_KEY),
+    kvGetCached('groq-keys'),
+    kvGetCached('groq-skip'),
+    kvGetCached('gemini-keys'),
+    kvGetCached('gemini-skip'),
+    kvGetCached('groq-lastgood'),
+    kvGetCached('gemini-lastgood'),
+    kvGetCached('active-provider'),
   ]);
   // Whichever provider most recently produced a caption is tried first — self-healing:
   // once one is exhausted the other takes over, and it flips back the moment the
@@ -414,7 +437,7 @@ Keep it punchy and share-worthy. No hashtags. ${emojiRule} Return ONLY the capti
     gemini: {
       name: 'Gemini',
       keysRaw: geminiKeysRaw,
-      skip: geminiSkip || {},
+      skip: geminiSkip || (cacheSet('gemini-skip', {}), kvCache.get('gemini-skip').v),
       skipStore: 'gemini-skip',
       lastGoodId: geminiLastGood || null,
       lastGoodStore: 'gemini-lastgood',
@@ -425,7 +448,7 @@ Keep it punchy and share-worthy. No hashtags. ${emojiRule} Return ONLY the capti
     groq: {
       name: 'Groq',
       keysRaw: groqKeysRaw,
-      skip: groqSkip || {},
+      skip: groqSkip || (cacheSet('groq-skip', {}), kvCache.get('groq-skip').v),
       skipStore: 'groq-skip',
       lastGoodId: groqLastGood || null,
       lastGoodStore: 'groq-lastgood',
@@ -439,6 +462,9 @@ Keep it punchy and share-worthy. No hashtags. ${emojiRule} Return ONLY the capti
   const secondary = primary === 'gemini' ? 'groq' : 'gemini';
   const cascade = [[primary, providers[primary]], [secondary, providers[secondary]]];
 
+  const tKv = Date.now();
+  // Server-Timing: kv = setup + KV reads, gen = provider calls (visible in browser devtools).
+  const timing = () => ({ 'Server-Timing': `kv;dur=${tKv - t0}, gen;dur=${Date.now() - tKv}` });
   let caption = '';
   let good = false;
   let wonBy = null;
@@ -466,12 +492,15 @@ Keep it punchy and share-worthy. No hashtags. ${emojiRule} Return ONLY the capti
     const fallback = makeFallbackCaption({ topic, limit, allowEmojis });
     console.warn(`[generate] all providers unavailable (${providers[primary].name}, ${providers[secondary].name}) — served fallback caption`);
     after(() => trackGeneration(ip, topicLabel).catch(() => {}));
-    return Response.json({ caption: fallback, fallback: true });
+    return Response.json({ caption: fallback, fallback: true }, { headers: timing() });
   }
 
   // Flip the active provider so the next request goes straight to whichever just worked.
-  if (wonBy && wonBy !== activeProvider) after(() => kvSet('active-provider', wonBy).catch(() => {}));
+  if (wonBy && wonBy !== activeProvider) {
+    cacheSet('active-provider', wonBy);
+    after(() => kvSet('active-provider', wonBy).catch(() => {}));
+  }
 
   after(() => trackGeneration(ip, topicLabel).catch(() => {}));
-  return Response.json({ caption });
+  return Response.json({ caption }, { headers: timing() });
 }
