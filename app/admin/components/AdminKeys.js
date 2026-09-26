@@ -17,6 +17,8 @@ function AdminKeys({ passcode, provider }) {
   const [bulk, setBulk] = useState('');
   const [adding, setAdding] = useState(false);
   const [msg, setMsg] = useState('');
+  const [testing, setTesting] = useState(false);
+  const [results, setResults] = useState({});
 
   const load = async () => {
     setLoading(true); setLoadError('');
@@ -27,7 +29,7 @@ function AdminKeys({ passcode, provider }) {
       else { setKeys(data.keys || []); setTotal(data.total || 0); }
     } catch { setLoadError('Network error — try again.'); } finally { setLoading(false); }
   };
-  useEffect(() => { setBulk(''); setMsg(''); load(); }, [provider]);
+  useEffect(() => { setBulk(''); setMsg(''); setResults({}); load(); }, [provider]);
 
   const addKeys = async () => {
     const lines = [...new Set(bulk.split(/[\s,]+/).map(s => s.trim()).filter(Boolean))];
@@ -68,6 +70,20 @@ function AdminKeys({ passcode, provider }) {
     } catch { setMsg('Network error — try again.'); }
   };
 
+  const testAll = async () => {
+    setTesting(true); setMsg(''); setResults({});
+    try {
+      const res = await fetch('/api/keys', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passcode, provider, action: 'test' }) });
+      const data = await res.json();
+      if (data.error) { setMsg(data.error); return; }
+      const map = {};
+      data.results.forEach(r => { map[r.id] = r; });
+      setResults(map);
+      const ok = data.results.filter(r => r.status === 200).length;
+      setMsg(`Tested ${data.results.length} ${meta.label} keys on ${data.model}: ${ok} working, ${data.results.length - ok} failing.`);
+    } catch { setMsg('Network error — try again.'); } finally { setTesting(false); }
+  };
+
   const clearAll = async () => {
     if (typeof window !== 'undefined' && !window.confirm(`Remove ALL ${meta.label} keys?`)) return;
     await fetch('/api/keys', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passcode, provider, action: 'clear' }) });
@@ -102,6 +118,7 @@ function AdminKeys({ passcode, provider }) {
           <label style={{ ...sLbl, marginBottom: 0 }}>Active keys</label>
           {keys.length > 0 && (
             <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={testAll} disabled={testing} style={{ fontSize: 12, color: 'var(--color-text-primary)', background: 'transparent', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: '4px 10px' }}>{testing ? 'Testing…' : 'Test all'}</button>
               <button onClick={exportKeys} style={{ fontSize: 12, color: 'var(--color-text-primary)', background: 'transparent', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: '4px 10px' }}>Export</button>
               <button onClick={clearAll} style={{ fontSize: 12, color: 'var(--color-text-danger)', background: 'transparent', border: '0.5px solid var(--color-border-danger)', borderRadius: 8, padding: '4px 10px' }}>Clear all</button>
             </div>
@@ -117,7 +134,14 @@ function AdminKeys({ passcode, provider }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {keys.map(k => (
               <div key={k.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', borderRadius: 8, border: '0.5px solid var(--color-border-tertiary)' }}>
-                <span style={{ fontSize: 13, fontFamily: 'monospace', color: 'var(--color-text-primary)' }}>{k.masked}</span>
+                <span style={{ fontSize: 13, fontFamily: 'monospace', color: 'var(--color-text-primary)' }}>
+                  {k.masked}
+                  {results[k.id] && (
+                    <span style={{ marginLeft: 10, fontSize: 12, fontFamily: 'inherit', color: results[k.id].status === 200 ? 'var(--color-text-success, #4ade80)' : 'var(--color-text-danger)' }}>
+                      {results[k.id].status === 200 ? `✓ ${results[k.id].ms}ms` : `✗ ${results[k.id].status}${results[k.id].note ? ` ${results[k.id].note}` : ''}`}
+                    </span>
+                  )}
+                </span>
                 <button onClick={() => remove(k.id)} style={{ fontSize: 12, color: 'var(--color-text-danger)', background: 'transparent', border: 'none', padding: '4px 8px' }}>Remove</button>
               </div>
             ))}
