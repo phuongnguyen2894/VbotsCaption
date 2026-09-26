@@ -2,7 +2,7 @@ export const maxDuration = 60;
 
 import { after } from 'next/server';
 import { kvGet, kvSet } from '../../lib/kv.js';
-import { CONFIG_KEY } from '../../lib/config.js';
+import { CONFIG_KEY, resolveGeminiModel } from '../../lib/config.js';
 import { hanoiDateString } from '../../lib/timezone.js';
 
 function normTopic(t) {
@@ -418,7 +418,7 @@ Keep it punchy and share-worthy. No hashtags. ${emojiRule} Return ONLY the capti
       lastGoodId: geminiLastGood || null,
       lastGoodStore: 'gemini-lastgood',
       envKey: (process.env.GEMINI_API_KEY || '').replace(/^﻿/, ''),
-      model: cfg?.geminiModel || process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+      model: resolveGeminiModel(cfg?.geminiModel || process.env.GEMINI_MODEL),
       callFn: (p, m, k) => callGeminiWithKey(p, m, k, 2600, numPredict),
     },
     groq: {

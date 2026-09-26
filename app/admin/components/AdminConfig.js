@@ -1,12 +1,13 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { card, sLbl, inp } from './styles.js';
+import { DEFAULT_GEMINI_MODEL, resolveGeminiModel } from '../../lib/config.js';
 
 // ── Admin Config ──────────────────────────────────────────────────────────────
 const MAX_TOPICS = 10;
 
 export function AdminConfig({ passcode }) {
-  const [cfg, setCfg] = useState({ topics: [{ label: '', topic: '', tagsAndKeywords: '', igTagsAndKeywords: '', language: 'vi', charLimit: 250, enabled: true, allowEmojis: false }], charLimit: 280, provider: 'groq', geminiModel: 'gemini-2.5-flash' });
+  const [cfg, setCfg] = useState({ topics: [{ label: '', topic: '', tagsAndKeywords: '', igTagsAndKeywords: '', language: 'vi', charLimit: 250, enabled: true, allowEmojis: false }], charLimit: 280, provider: 'groq', geminiModel: DEFAULT_GEMINI_MODEL });
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -18,7 +19,7 @@ export function AdminConfig({ passcode }) {
       // Topics saved before the enable/disable feature existed default to enabled.
       const fallback = data.charLimit ?? 250;
       const topics = (data.topics || []).map(t => ({ charLimit: fallback, enabled: true, allowEmojis: false, igTagsAndKeywords: '', ...t }));
-      setCfg({ provider: 'groq', geminiModel: 'gemini-2.5-flash', ...data, topics });
+      setCfg({ provider: 'groq', geminiModel: DEFAULT_GEMINI_MODEL, ...data, geminiModel: resolveGeminiModel(data.geminiModel), topics });
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -111,7 +112,7 @@ export function AdminConfig({ passcode }) {
                   type="text"
                   value={cfg.geminiModel ?? ''}
                   onChange={e => setCfg(prev => ({ ...prev, geminiModel: e.target.value }))}
-                  placeholder="e.g. gemini-2.5-flash or gemini-3.1-flash-lite"
+                  placeholder="e.g. gemini-3.1-flash-lite or gemini-3.5-flash-lite"
                   style={inp}
                 />
                 <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--color-text-tertiary)' }}>
