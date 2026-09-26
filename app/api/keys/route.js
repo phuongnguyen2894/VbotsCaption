@@ -20,6 +20,11 @@ export async function POST(request) {
   const KEYS_STORE = storeFor(provider);
   let keys = (await kvGet(KEYS_STORE)) || [];
 
+  // Full (unmasked) keys, passcode-gated — one per line so the file can be pasted back into "Add keys".
+  if (action === 'export') {
+    return Response.json({ keys: keys.map(k => k.key).filter(Boolean) });
+  }
+
   if (action === 'remove' && id) {
     keys = keys.filter(k => k.id !== id);
     await kvSet(KEYS_STORE, keys);

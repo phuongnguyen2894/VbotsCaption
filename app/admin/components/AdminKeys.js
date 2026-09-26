@@ -51,6 +51,23 @@ function AdminKeys({ passcode, provider }) {
     await load();
   };
 
+  const exportKeys = async () => {
+    setMsg('');
+    try {
+      const res = await fetch('/api/keys', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passcode, provider, action: 'export' }) });
+      const data = await res.json();
+      if (data.error) { setMsg(data.error); return; }
+      const blob = new Blob([(data.keys || []).join('\n') + '\n'], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${provider}-keys-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setMsg(`Exported ${data.keys.length} ${meta.label} keys.`);
+    } catch { setMsg('Network error — try again.'); }
+  };
+
   const clearAll = async () => {
     if (typeof window !== 'undefined' && !window.confirm(`Remove ALL ${meta.label} keys?`)) return;
     await fetch('/api/keys', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ passcode, provider, action: 'clear' }) });
@@ -83,7 +100,12 @@ function AdminKeys({ passcode, provider }) {
       <div style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <label style={{ ...sLbl, marginBottom: 0 }}>Active keys</label>
-          {keys.length > 0 && <button onClick={clearAll} style={{ fontSize: 12, color: 'var(--color-text-danger)', background: 'transparent', border: '0.5px solid var(--color-border-danger)', borderRadius: 8, padding: '4px 10px' }}>Clear all</button>}
+          {keys.length > 0 && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={exportKeys} style={{ fontSize: 12, background: 'transparent', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: '4px 10px' }}>Export</button>
+              <button onClick={clearAll} style={{ fontSize: 12, color: 'var(--color-text-danger)', background: 'transparent', border: '0.5px solid var(--color-border-danger)', borderRadius: 8, padding: '4px 10px' }}>Clear all</button>
+            </div>
+          )}
         </div>
         {loading ? (
           <p style={{ margin: 0, fontSize: 13, color: 'var(--color-text-secondary)' }}>Loading…</p>
