@@ -136,9 +136,8 @@ export function AdminConfig({ passcode }) {
               )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {/* Newest first — topics are appended on add, so the highest index is the latest. */}
-                {cfg.topics.map((_, i) => cfg.topics.length - 1 - i).map(idx => {
-                  const t = cfg.topics[idx];
+                {/* Same order as the public page's tabs (array order); hidden topics stay listed here. */}
+                {cfg.topics.map((t, idx) => {
                   return (
                   <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', borderRadius: 8, border: '0.5px solid var(--color-border-tertiary)' }}>
                     <button
@@ -158,18 +157,18 @@ export function AdminConfig({ passcode }) {
                     </button>
                     <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                       <button
-                        onClick={() => moveTopic(idx, 1)}
-                        disabled={idx === cfg.topics.length - 1}
-                        title="Move up (more recent)"
-                        style={{ fontSize: 13, padding: '6px 8px', borderRadius: 8, minHeight: 32, border: '0.5px solid var(--color-border-tertiary)', background: 'transparent', color: 'var(--color-text-secondary)', opacity: idx === cfg.topics.length - 1 ? 0.4 : 1 }}
+                        onClick={() => moveTopic(idx, -1)}
+                        disabled={idx === 0}
+                        title="Move up"
+                        style={{ fontSize: 13, padding: '6px 8px', borderRadius: 8, minHeight: 32, border: '0.5px solid var(--color-border-tertiary)', background: 'transparent', color: 'var(--color-text-secondary)', opacity: idx === 0 ? 0.4 : 1 }}
                       >
                         ↑
                       </button>
                       <button
-                        onClick={() => moveTopic(idx, -1)}
-                        disabled={idx === 0}
-                        title="Move down (older)"
-                        style={{ fontSize: 13, padding: '6px 8px', borderRadius: 8, minHeight: 32, border: '0.5px solid var(--color-border-tertiary)', background: 'transparent', color: 'var(--color-text-secondary)', opacity: idx === 0 ? 0.4 : 1 }}
+                        onClick={() => moveTopic(idx, 1)}
+                        disabled={idx === cfg.topics.length - 1}
+                        title="Move down"
+                        style={{ fontSize: 13, padding: '6px 8px', borderRadius: 8, minHeight: 32, border: '0.5px solid var(--color-border-tertiary)', background: 'transparent', color: 'var(--color-text-secondary)', opacity: idx === cfg.topics.length - 1 ? 0.4 : 1 }}
                       >
                         ↓
                       </button>
