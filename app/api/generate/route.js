@@ -4,6 +4,7 @@ import { after } from 'next/server';
 import { kvGet, kvSet } from '../../lib/kv.js';
 import { CONFIG_KEY, resolveGeminiModel } from '../../lib/config.js';
 import { hanoiDateString } from '../../lib/timezone.js';
+import { makeFallbackCaption } from '../../lib/fallbackCaption.js';
 
 function normTopic(t) {
   if (!t || typeof t === 'number') return { captions: t || 0, users: [] };
@@ -461,10 +462,11 @@ Keep it punchy and share-worthy. No hashtags. ${emojiRule} Return ONLY the capti
   }
 
   if (!caption) {
-    return Response.json(
-      { error: `All providers unavailable (${providers[primary].name}, ${providers[secondary].name}).` },
-      { status: 503 }
-    );
+    // Every key on both providers failed — serve a template caption rather than an error.
+    const fallback = makeFallbackCaption({ topic, limit, allowEmojis });
+    console.warn(`[generate] all providers unavailable (${providers[primary].name}, ${providers[secondary].name}) — served fallback caption`);
+    after(() => trackGeneration(ip, topicLabel).catch(() => {}));
+    return Response.json({ caption: fallback, fallback: true });
   }
 
   // Flip the active provider so the next request goes straight to whichever just worked.
