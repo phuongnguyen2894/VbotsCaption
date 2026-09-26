@@ -11,6 +11,7 @@ import { makeFallbackCaption } from '../../lib/fallbackCaption.js';
 // trip was a fixed cost on every caption. Entries live briefly so admin edits and other
 // instances' skip-list updates show up within TTL; local changes are written through.
 const KV_CACHE_TTL_MS = 20 * 1000;
+const ACTIVE_PROVIDER_TTL_MS = 3 * 60 * 1000; // how long a fallback provider stays pinned as primary
 const kvCache = new Map();
 
 async function kvGetCached(key) {
@@ -246,7 +247,7 @@ async function callGroqWithKey(prompt, model, apiKey, timeoutMs = 7000) {
 // keys get added to the skip list with their reset time, so future requests jump straight
 // to live keys. `skip`/`lastGoodId` are pre-fetched by the caller (in parallel with
 // everything else) so this never blocks on its own KV round-trip.
-async function callProviderRotating(prompt, model, pool, callFn, skip, skipStore, lastGoodId, lastGoodStore, log = [], label = '') {
+async function callProviderRotating(prompt, model, pool, callFn, skip, skipStore, lastGoodId, lastGoodStore, log = [], label = '', maxTries = Infinity) {
   if (!pool || !pool.length) throw new Error('no_keys');
   const now = Date.now();
   const live = pool.filter(k => !(skip[k.id] > now));
@@ -262,8 +263,10 @@ async function callProviderRotating(prompt, model, pool, callFn, skip, skipStore
   let result;
   let got = false;
   let goodId = null;
+  let tries = 0;
   for (const k of order) {
-    if (Date.now() > deadline) break;
+    if (Date.now() > deadline || tries >= maxTries) break;
+    tries++;
     const ta = Date.now();
     try {
       result = await callFn(prompt, model, k.key);
@@ -429,12 +432,15 @@ Keep it punchy and share-worthy. No hashtags. ${emojiRule} Return ONLY the capti
     kvGetCached('gemini-lastgood'),
     kvGetCached('active-provider'),
   ]);
-  // Whichever provider most recently produced a caption is tried first — self-healing:
-  // once one is exhausted the other takes over, and it flips back the moment the
-  // original recovers, without needing the admin to flip the config by hand.
-  // Falls back to the admin's configured preference until a provider has ever succeeded.
+  // The admin's configured provider is tried first. If it fails and the other one answers,
+  // that other one is remembered as the active provider — but only for a few minutes, after
+  // which the configured provider gets tried first again. (Previously the last winner stuck
+  // forever, so a slow-but-working fallback like Gemini could stay primary indefinitely.)
   const configured = cfg?.provider === 'gemini' ? 'gemini' : 'groq';
-  const primary = (activeProvider === 'groq' || activeProvider === 'gemini') ? activeProvider : configured;
+  const activeFresh = activeProvider && typeof activeProvider === 'object'
+    && (activeProvider.p === 'groq' || activeProvider.p === 'gemini')
+    && Date.now() - activeProvider.at < ACTIVE_PROVIDER_TTL_MS;
+  const primary = activeFresh ? activeProvider.p : configured;
 
   const providers = {
     gemini: {
@@ -442,6 +448,7 @@ Keep it punchy and share-worthy. No hashtags. ${emojiRule} Return ONLY the capti
       keysRaw: geminiKeysRaw,
       skip: geminiSkip || (cacheSet('gemini-skip', {}), kvCache.get('gemini-skip').v),
       skipStore: 'gemini-skip',
+      maxTries: 2, // Gemini is slower and times out at ~2.6s per key — don't burn the whole budget on it
       lastGoodId: geminiLastGood || null,
       lastGoodStore: 'gemini-lastgood',
       envKey: (process.env.GEMINI_API_KEY || '').replace(/^﻿/, ''),
@@ -453,6 +460,7 @@ Keep it punchy and share-worthy. No hashtags. ${emojiRule} Return ONLY the capti
       keysRaw: groqKeysRaw,
       skip: groqSkip || (cacheSet('groq-skip', {}), kvCache.get('groq-skip').v),
       skipStore: 'groq-skip',
+      maxTries: Infinity,
       lastGoodId: groqLastGood || null,
       lastGoodStore: 'groq-lastgood',
       envKey: (process.env.GROQ_API_KEY || '').replace(/^﻿/, ''),
@@ -488,7 +496,7 @@ Keep it punchy and share-worthy. No hashtags. ${emojiRule} Return ONLY the capti
 
     try {
       for (let i = 0; i < 2; i++) {
-        const c = clean(await callProviderRotating(prompt, p.model, pool, p.callFn, p.skip, p.skipStore, p.lastGoodId, p.lastGoodStore, attempts, p.name));
+        const c = clean(await callProviderRotating(prompt, p.model, pool, p.callFn, p.skip, p.skipStore, p.lastGoodId, p.lastGoodStore, attempts, p.name, p.maxTries));
         if (!caption) caption = c; // keep first as a fallback
         if (isGood(c)) { caption = c; good = true; wonBy = name; break; }
       }
@@ -505,10 +513,16 @@ Keep it punchy and share-worthy. No hashtags. ${emojiRule} Return ONLY the capti
     return Response.json({ caption: fallback, fallback: true }, { headers: timing() });
   }
 
-  // Flip the active provider so the next request goes straight to whichever just worked.
-  if (wonBy && wonBy !== activeProvider) {
-    cacheSet('active-provider', wonBy);
-    after(() => kvSet('active-provider', wonBy).catch(() => {}));
+  // A non-configured provider just won: pin it briefly so the next requests skip the
+  // failing configured one. Not refreshed while pinned, so the pin always expires and the
+  // configured provider is re-tried. Once the configured one wins again, drop any old pin.
+  if (wonBy && wonBy !== configured && !activeFresh) {
+    const pin = { p: wonBy, at: Date.now() };
+    cacheSet('active-provider', pin);
+    after(() => kvSet('active-provider', pin).catch(() => {}));
+  } else if (wonBy === configured && activeProvider) {
+    cacheSet('active-provider', null);
+    after(() => kvSet('active-provider', null).catch(() => {}));
   }
 
   after(() => trackGeneration(ip, topicLabel).catch(() => {}));
