@@ -246,7 +246,7 @@ async function callGroqWithKey(prompt, model, apiKey, timeoutMs = 7000) {
 // keys get added to the skip list with their reset time, so future requests jump straight
 // to live keys. `skip`/`lastGoodId` are pre-fetched by the caller (in parallel with
 // everything else) so this never blocks on its own KV round-trip.
-async function callProviderRotating(prompt, model, pool, callFn, skip, skipStore, lastGoodId, lastGoodStore) {
+async function callProviderRotating(prompt, model, pool, callFn, skip, skipStore, lastGoodId, lastGoodStore, log = [], label = '') {
   if (!pool || !pool.length) throw new Error('no_keys');
   const now = Date.now();
   const live = pool.filter(k => !(skip[k.id] > now));
@@ -264,12 +264,15 @@ async function callProviderRotating(prompt, model, pool, callFn, skip, skipStore
   let goodId = null;
   for (const k of order) {
     if (Date.now() > deadline) break;
+    const ta = Date.now();
     try {
       result = await callFn(prompt, model, k.key);
+      log.push({ label, outcome: 'ok', ms: Date.now() - ta });
       got = true;
       goodId = k.id;
       break;
     } catch (e) {
+      log.push({ label, outcome: e.message, ms: Date.now() - ta });
       lastErr = e;
       if (e.cooldownMs) newSkips[k.id] = Date.now() + e.cooldownMs; // remember it's exhausted
     }
@@ -463,8 +466,15 @@ Keep it punchy and share-worthy. No hashtags. ${emojiRule} Return ONLY the capti
   const cascade = [[primary, providers[primary]], [secondary, providers[secondary]]];
 
   const tKv = Date.now();
+  const attempts = []; // every provider call this request made: which, outcome, duration
   // Server-Timing: kv = setup + KV reads, gen = provider calls (visible in browser devtools).
-  const timing = () => ({ 'Server-Timing': `kv;dur=${tKv - t0}, gen;dur=${Date.now() - tKv}` });
+  const timing = () => ({
+    'Server-Timing': [
+      `kv;dur=${tKv - t0}`,
+      `gen;dur=${Date.now() - tKv}`,
+      ...attempts.map((a, i) => `call${i + 1};desc="${a.label} ${a.outcome}";dur=${a.ms}`),
+    ].join(', '),
+  });
   let caption = '';
   let good = false;
   let wonBy = null;
@@ -478,7 +488,7 @@ Keep it punchy and share-worthy. No hashtags. ${emojiRule} Return ONLY the capti
 
     try {
       for (let i = 0; i < 2; i++) {
-        const c = clean(await callProviderRotating(prompt, p.model, pool, p.callFn, p.skip, p.skipStore, p.lastGoodId, p.lastGoodStore));
+        const c = clean(await callProviderRotating(prompt, p.model, pool, p.callFn, p.skip, p.skipStore, p.lastGoodId, p.lastGoodStore, attempts, p.name));
         if (!caption) caption = c; // keep first as a fallback
         if (isGood(c)) { caption = c; good = true; wonBy = name; break; }
       }
