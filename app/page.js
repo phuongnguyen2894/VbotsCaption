@@ -40,14 +40,14 @@ const STRINGS = {
     loading: 'Loading…', ready: n => `Admiring · max ${n} chars`, notConfigured: 'Not configured — contact your admin.',
     caption: 'Caption', tagsKeywords: 'Tags & Keywords', igTagsKeywords: 'Instagram Tags & Keywords',
     copied: '✓ Copied', copy: 'Copy', copyCaption: 'Copy caption', copyCaptionIg: 'Copy caption + IG tags', copyCaptionTags: 'Copy caption + tags',
-    generating: 'Generating…', shuffle: '↺ Shuffle', shuffleBoth: '⤮ Shuffle caption & tags',
+    generating: 'Generating…', shuffle: '↺ New caption', shuffleBoth: '⤮ New caption + shuffle tags', shuffleNote: 'Shuffle tags will shuffle the first 3 hashtags.',
     genFailed: 'Generation failed.', reqFailed: 'Request failed: ', topic: 'Topic',
   },
   vi: {
     loading: 'Đang tải…', ready: n => `Admiring · tối đa ${n} ký tự`, notConfigured: 'Chưa được cấu hình — vui lòng liên hệ quản trị viên.',
     caption: 'Caption', tagsKeywords: 'Thẻ & Từ khóa', igTagsKeywords: 'Thẻ & Từ khóa Instagram',
     copied: '✓ Đã sao chép', copy: 'Sao chép', copyCaption: 'Sao chép caption', copyCaptionIg: 'Sao chép caption + thẻ IG', copyCaptionTags: 'Sao chép caption + thẻ',
-    generating: 'Đang tạo…', shuffle: '↺ Xáo trộn', shuffleBoth: '⤮ Xáo trộn caption & thẻ',
+    generating: 'Đang tạo…', shuffle: '↺ Tạo mới', shuffleBoth: '⤮ Tạo mới + đảo tag', shuffleNote: 'Đảo tag sẽ đảo 3 hashtag đầu tiên.',
     genFailed: 'Tạo caption thất bại.', reqFailed: 'Yêu cầu thất bại: ', topic: 'Chủ đề',
   },
 };
@@ -322,6 +322,7 @@ export default function PublicPage() {
                   </button>
                 ))}
               </div>
+              <p style={{ margin: '8px 0 0', fontSize: 12, color: '#52525b', textAlign: 'center' }}>{t.shuffleNote}</p>
             </div>
           )}
 
