@@ -304,12 +304,19 @@ export default function PublicPage() {
                 <CaptionCard caption={caption} charLimit={activeCharLimit} tagsText={tagsText} igTagsText={igTagsText} t={t} />
               )}
               <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                {[[t.shuffle, () => generateForTab(activeTab, cfg)], [t.shuffleBoth, shuffleBoth]].map(([text, onClick]) => (
+                {[[t.shuffle, () => generateForTab(activeTab, cfg), false], [t.shuffleBoth, shuffleBoth, true]].map(([text, onClick, primary]) => (
                   <button
                     key={text}
                     onClick={onClick}
                     disabled={loading || !isReady}
-                    style={{ flex: 1, padding: '9px 0', background: 'transparent', border: '1px solid #27272a', borderRadius: 9, color: loading ? '#3f3f46' : '#71717a', fontSize: 13, cursor: loading || !isReady ? 'not-allowed' : 'pointer' }}
+                    style={{
+                      flex: 1, padding: '11px 0', borderRadius: 9, fontSize: 14, fontWeight: 600,
+                      background: loading ? '#27272a' : primary ? '#2563eb' : '#1d4ed820',
+                      border: `1px solid ${loading ? '#27272a' : primary ? '#3b82f6' : '#3b82f680'}`,
+                      color: loading ? '#52525b' : primary ? '#fff' : '#93c5fd',
+                      boxShadow: loading || !primary ? 'none' : '0 0 14px #2563eb60',
+                      cursor: loading || !isReady ? 'not-allowed' : 'pointer',
+                    }}
                   >
                     {loading ? t.generating : text}
                   </button>
