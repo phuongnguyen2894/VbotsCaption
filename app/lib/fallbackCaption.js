@@ -1,8 +1,9 @@
 // Last-resort caption when every Groq and Gemini key has failed. Assembled from small word
 // lists (hook + name + action + vibe + ending) so users still get a clean caption instead of
 // an error. Always English, whatever language the topic uses. Deliberately generic: no brand
-// or show names, and only female wording, since Ling and Orm are both women. Singular and
-// plural action forms are kept separate for one person vs a duo.
+// or show names, and only female wording, since Lingling Kwong and Orm Kornnaphat are both
+// women. Always full names, never "Ling"/"Orm". Singular and plural action forms are kept
+// separate for one person vs a duo.
 
 const EN = {
   hooks: [
@@ -26,7 +27,7 @@ const EN = {
     'Beautiful down to every detail.',
     'Never gets old.',
   ],
-  duo: 'Ling and Orm',
+  duo: 'Lingling Kwong and Orm Kornnaphat',
 };
 
 const EMOJIS = ['✨', '💖', '🌸', '🤍'];
@@ -40,8 +41,8 @@ function subjectFor(topic) {
   const t = topic || '';
   const hasLing = /\bling\b|\blingling\b|\bkwong\b|\bsirilak\b/i.test(t);
   const hasOrm = /\borm\b|\bkornnaphat\b|\bsethratanapong\b/i.test(t);
-  if (hasLing && !hasOrm) return { name: 'Ling', isDuo: false };
-  if (hasOrm && !hasLing) return { name: 'Orm', isDuo: false };
+  if (hasLing && !hasOrm) return { name: 'Lingling Kwong', isDuo: false };
+  if (hasOrm && !hasLing) return { name: 'Orm Kornnaphat', isDuo: false };
   return { name: null, isDuo: true };
 }
 
