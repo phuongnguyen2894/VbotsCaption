@@ -33,10 +33,13 @@ const EMOJIS = ['✨', '💖', '🌸', '🤍'];
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-// Who the topic is about: only Ling, only Orm, or (default) both.
+// Who the topic is about: only Ling, only Orm, or (default) both. Topics sometimes spell
+// out full/birth names ("Lingling Kwong", "Orm Kornnaphat", or even "OrmKornnaphat" with no
+// space) instead of the bare short names, so match on any of their name parts.
 function subjectFor(topic) {
-  const hasLing = /\bling\b/i.test(topic || '');
-  const hasOrm = /\borm\b/i.test(topic || '');
+  const t = topic || '';
+  const hasLing = /\bling\b|\blingling\b|\bkwong\b|\bsirilak\b/i.test(t);
+  const hasOrm = /\borm\b|\bkornnaphat\b|\bsethratanapong\b/i.test(t);
   if (hasLing && !hasOrm) return { name: 'Ling', isDuo: false };
   if (hasOrm && !hasLing) return { name: 'Orm', isDuo: false };
   return { name: null, isDuo: true };
